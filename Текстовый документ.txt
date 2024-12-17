@@ -1,0 +1,100 @@
+CREATE TABLE Users (
+    user_id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    registration_date DATE NOT NULL
+);
+CREATE TABLE Orders (
+    order_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    order_date DATE NOT NULL,
+    total_amount DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id)
+);
+
+INSERT INTO Users (name, email, registration_date) VALUES
+('Alice', 'alice@example.com', '2024-01-01'),
+('Alice', 'alice@example.com', '2024-01-01');
+INSERT INTO clients (fio, birth_date, phone_num, email_addr) values
+('Иванов Иван Иванович', '1990-01-15 00:00:00', 89151234567, 'ivanov@mail.ru'),
+('Петров Петр Петрович', '1985-05-20 00:00:00', 89261234568, 'petrov@mail.ru');
+
+
+SELECT name, email, total_amount
+FROM Users
+JOIN Orders ON Users.user_id = Orders.user_id
+WHERE total_amount > (
+    SELECT AVG(total_amount)
+    FROM Orders
+);
+
+
+DELIMITER $$
+
+CREATE TRIGGER delete_order_details_after_product
+AFTER DELETE ON Products  AFTER BEFORE(INSTEAD OF) INSERT, UPDATE
+FOR EACH ROW
+BEGIN
+    DELETE FROM Order_Details
+    WHERE product_id = OLD.product_id;
+END$$
+
+DELIMITER ;
+
+CREATE DEFINER=`root`@`localhost` TRIGGER `trg_limit_sessions_per_client` BEFORE INSERT ON `clients_sessions` FOR EACH ROW BEGIN
+    DECLARE session_count INT;
+
+    SELECT COUNT(*) INTO session_count
+    FROM clients_sessions as cs
+    JOIN sessions as s ON cs.id_session = s.id_session
+    WHERE cs.id_client = NEW.id_client AND s.end_time IS NULL;
+
+    IF session_count != 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Активных сессий для клиента не может быть больше 1.';
+    END IF;
+END
+
+
+
+DELIMITER $$
+
+CREATE FUNCTION get_user_total(userId INT) RETURNS DECIMAL(10, 2)
+BEGIN
+    DECLARE total DECIMAL(10, 2);
+    SELECT SUM(total_amount) INTO total
+    FROM Orders
+    WHERE user_id = userId;
+    RETURN total;
+END$$
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE AddProduct(
+    IN product_name VARCHAR(100),
+    IN price DECIMAL(10, 2),
+    IN stock_quantity INT
+)
+BEGIN
+    INSERT INTO Products (product_name, price, stock_quantity)
+    VALUES (product_name, price, stock_quantity);
+END //
+
+DELIMITER ;
+
+
+call count_client_sessions(3, @count_sessions);
+select ""+@count_sessions as "Кол-во сессий у позьзователя 3";
+
+call add_session(3, 1);
+
+call change_serviceability(5);
+
+
+SELECT high_cost_service(3) as "Решение по услуге";
+
+SELECT total_payments(1);
+
+SELECT get_work_equipment();
